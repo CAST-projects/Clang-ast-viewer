@@ -181,56 +181,8 @@ public:
         return res;
     }
 
-    bool VisitDecl(Decl *d)
-    {
-        //myRootNode.name += std::string(4*indent, ' ') + d->getDeclKindName() + std::string{ "\n" };
-        return true;
-    }
-
-    bool VisitStmt(Stmt *d)
-    {
-        //myRootNode.name += std::string(4*indent, ' ') + d->getStmtClassName() + std::string{ "\n" };
-        return true;
-    }
-
-    bool VisitType(Type *d)
-    {
-        //myRootNode.name += std::string(4*indent, ' ') + d->getTypeClassName() + std::string{ "\n" };
-        return true;
-    }
 private:
     std::vector<GenericAstNode*> myStack;
-    GenericAstNode *myRootNode;
-};
-
-class CreateAstDump : public ASTConsumer
-{
-public:
-    CreateAstDump(CompilerInstance &ci, GenericAstNode *rootNode) :
-        myCI(ci),
-        myRootNode(rootNode)
-    {}
-    virtual void HandleTranslationUnit(ASTContext &ctx) 
-    {
-        auto visitor = AstDumpVisitor{&myCI, myRootNode};
-        visitor.TraverseDecl(ctx.getTranslationUnitDecl());
-    }
-
-private:
-    GenericAstNode *myRootNode;
-    CompilerInstance &myCI;
-};
-
-class CreateAstDumpAction : public ASTFrontendAction
-{
-public:
-    CreateAstDumpAction(GenericAstNode *rootNode) :
-        myRootNode(rootNode)
-    {}
-    std::unique_ptr<ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI, llvm::StringRef InFile) override
-    {
-        return  std::make_unique<CreateAstDump>(CI,myRootNode);
-    }
     GenericAstNode *myRootNode;
 };
 
@@ -304,33 +256,5 @@ GenericAstNode *AstReader::readAst(std::string const &sourceCode, std::string co
     std::cout << "Visiting AST and creating Qt Tree" << std::endl;
     auto visitor = AstDumpVisitor{nullptr, getRealRoot()};
     visitor.TraverseDecl(myAst->getASTContext().getTranslationUnitDecl());
-    //clang::tooling::runToolOnCode(new CreateAstDumpAction{ result.get() }, sourceCode); // Will delete the action
     return myArtificialRoot.get();
-    /*auto decl = *ast->top_level_begin();
-    
-    for (auto it = *ast->top_level_begin(); it != *ast->top_level_end(); ++ast)
-
-    auto result = std::string{};
-    auto os = llvm::raw_string_ostream{ result };
-    decl->dumpColor();
-    decl->print(os);
-    decl->
-    return result;
-    */
-    /*
-    runToolOnCode(new clang::SyntaxOnlyAction, sourceCode);
-
-    llvm::SmallString<256> tempDir;
-    llvm::sys::path::system_temp_directory(false, tempDir);
-    auto sourcePath = tempDir + "AstViewer.cpp";
-    auto args = std::vector<std::string> {};
-    args.push_back("dummy_exe_name"); // do not remove
-
-    auto argsB = std::vector<const char*>{};
-    std::transform(args.begin(), args.end(), std::back_inserter(argsB), [](std::string const& str) { return str.c_str(); });
-
-    auto options = CommonOptionsParser{ size, &argsB[0], cl::GeneralCategory };
-    ClangTool tool{ options.getCompilations(), options.getSourcePathList() };
-    auto result = tool.run(newAnalyzerFrontendActionFactory(projectInfo, visitorContext).get());
-    */
 }

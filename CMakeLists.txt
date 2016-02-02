@@ -4,7 +4,7 @@ project(ClangAstViewer)
 set (CMAKE_PREFIX_PATH "D:\\Qt\\5.5\\msvc2013_64")
 set (CLANG_ROOT "C:\\Dev\\Trunk\\3rdParties\\cpp\\binaries\\llvm-3.7.1\\")
 set (BOOST_ROOT "C:\\Dev\\Trunk\\3rdParties\\cpp\\binaries\\boost-1_55_0\\")
-set (CLANG_PREFIX_PATH ${CLANG_ROOT}x64\\release\\)
+set (CLANG_PREFIX_PATH ${CLANG_ROOT}x64\\$(ConfigurationName)\\)
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
