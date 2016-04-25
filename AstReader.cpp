@@ -168,8 +168,18 @@ public:
         return res;
     }
 
+    bool VisitStringLiteral(clang::StringLiteral *s)
+    {
+        myStack.back()->name += (" " + s->getBytes()).str();
+        return true;
+    }
+
     bool TraverseType(clang::QualType type)
     {
+        if (type.isNull())
+        {
+            return PARENT::TraverseType(type);
+        }
         auto node = std::make_unique<GenericAstNode>();
         //node->myType = d;
         node->name = type->getTypeClassName();
@@ -249,10 +259,10 @@ GenericAstNode *AstReader::readAst(std::string const &sourceCode, std::string co
 
     std::cout << "Launching Clang to create AST" << std::endl;
     myAst = clang::tooling::buildASTFromCodeWithArgs(mySourceCode, args);
-    /*for (auto it = myAst->top_level_begin(); it != myAst->top_level_end(); ++it)
+    for (auto it = myAst->top_level_begin(); it != myAst->top_level_end(); ++it)
     {
         (*it)->dumpColor();
-    }*/
+    }
     std::cout << "Visiting AST and creating Qt Tree" << std::endl;
     auto visitor = AstDumpVisitor{nullptr, getRealRoot()};
     visitor.TraverseDecl(myAst->getASTContext().getTranslationUnitDecl());
