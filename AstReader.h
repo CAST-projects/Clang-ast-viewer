@@ -11,6 +11,7 @@
 #include <string>
 #include <boost/variant.hpp>
 
+
 class GenericAstNode
 {
 public:
@@ -22,8 +23,13 @@ public:
     bool getRangeInMainFile(std::pair<int, int> &result, clang::SourceManager const &manager, clang::ASTContext &context); // Return false if the range is not fully in the main file
     clang::SourceRange getRange();
     int getColor(); // Will return a color identifier How this is linked to the real color is up to the user
+    using Properties = std::map<std::string, std::string>;
+    void setProperty(std::string const &propertyName, std::string const &value);
+    Properties const &getProperties() const;
     boost::variant<clang::Decl *, clang::Stmt *> myAstNode;
     GenericAstNode *myParent;
+private:
+    Properties myProperties;
 };
 
 class AstReader

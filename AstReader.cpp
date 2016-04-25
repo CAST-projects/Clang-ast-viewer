@@ -2,6 +2,7 @@
 #include <sstream>
 #include "CommandLineSplitter.h"
 #include <iostream>
+#include "StringLiteralExtractor.h"
 
 
 #pragma warning (push)
@@ -12,9 +13,22 @@
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/AST/Decl.h>
 #include <clang/Lex/Lexer.h>
+#include <clang/Basic/TargetInfo.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/AST/Mangle.h>
 #pragma warning (pop)
 
 using namespace clang;
+
+namespace props
+{
+    std::string const Name = "Name";
+    std::string const Mangling = "Mangling";
+    std::string const Referenced = "Referenced name";
+    std::string const Resolved = "Resolved name";
+    std::string const Value = "Value";
+    std::string const InterpretedValue = "Interpreted value";
+}
 
 GenericAstNode::GenericAstNode() :
     myParent(nullptr)
@@ -88,12 +102,26 @@ int GenericAstNode::getColor()
     return boost::apply_visitor(NodeColorVisitor(), myAstNode);
 }
 
+
+void GenericAstNode::setProperty(std::string const &propertyName, std::string const &value)
+{
+    myProperties[propertyName] = value;
+}
+
+GenericAstNode::Properties const &GenericAstNode::getProperties() const
+{
+    return myProperties;
+}
+
+
+
 class AstDumpVisitor : public RecursiveASTVisitor<AstDumpVisitor>
 {
 public:
     using PARENT = clang::RecursiveASTVisitor<AstDumpVisitor>;
-    AstDumpVisitor(clang::CompilerInstance *CI, GenericAstNode *rootNode) :
-        myRootNode(rootNode)
+    AstDumpVisitor(clang::ASTContext &context, GenericAstNode *rootNode) :
+        myRootNode(rootNode),
+        myAstContext(context)
     {
         myStack.push_back(myRootNode);
     }
@@ -125,6 +153,22 @@ public:
         return os.str();
     }
 
+    std::string getMangling(clang::NamedDecl *ND)
+    {
+        auto mangleContext = ND->getASTContext().createMangleContext();
+        std::string FrontendBuf;
+        llvm::raw_string_ostream FrontendBufOS(FrontendBuf);
+
+        if (mangleContext->shouldMangleDeclName(ND) && !isa<CXXConstructorDecl>(ND) && !isa<CXXDestructorDecl>(ND))
+        {
+            mangleContext->mangleName(ND, FrontendBufOS);
+            return FrontendBufOS.str();
+        }
+        else
+        {
+            return "<No Mangling>";
+        }
+    }
 
     bool TraverseDecl(clang::Decl *decl)
     {
@@ -138,11 +182,20 @@ public:
         if (auto *FD = dyn_cast<FunctionDecl>(decl))
         {
             node->name += " " + getFunctionPrototype(FD);
+            node->setProperty(props::Mangling, getMangling(FD));
+            node->setProperty(props::Name, getFunctionPrototype(FD));
+        }
+        else if (auto *VD = dyn_cast<VarDecl>(decl))
+        {
+            node->setProperty(props::Mangling, getMangling(VD));
+            node->setProperty(props::Name, VD->getNameAsString());
         }
         else if (auto *ND = dyn_cast<NamedDecl>(decl))
         {
             node->name += " " + ND->getNameAsString();
+            node->setProperty(props::Name, ND->getNameAsString());
         }
+
         auto nodePtr = node.get();
         myStack.back()->attach(std::move(node));
         myStack.push_back(nodePtr);
@@ -171,6 +224,58 @@ public:
     bool VisitStringLiteral(clang::StringLiteral *s)
     {
         myStack.back()->name += (" " + s->getBytes()).str();
+        myStack.back()->setProperty(props::InterpretedValue, s->getBytes());
+        auto parts = splitStringLiteral(s, myAstContext.getSourceManager(), myAstContext.getLangOpts(), myAstContext.getTargetInfo());
+        if (parts.size() == 1)
+        {
+            myStack.back()->setProperty(props::Value, parts[0]);
+
+        }
+        else
+        {
+            int i = 0;
+            for (auto &part : parts)
+            {
+                ++i;
+                myStack.back()->setProperty(props::Value + " " + std::to_string(i), part);
+
+            }
+        }
+        return true;
+    }
+
+    bool VisitIntegerLiteral(clang::IntegerLiteral *i)
+    {
+        bool isSigned = i->getType()->isSignedIntegerType();
+        myStack.back()->setProperty(props::Value, i->getValue().toString(10, isSigned));
+        return true;
+    }
+
+    bool VisitCharacterLiteral(clang::CharacterLiteral *c)
+    {
+        myStack.back()->setProperty(props::Value, std::string(1, c->getValue()));
+        return true;
+    }
+
+    bool VisitFloatingLiteral(clang::FloatingLiteral *f)
+    {
+        myStack.back()->setProperty(props::Value, std::to_string(f->getValueAsApproximateDouble()));
+        return true;
+    }
+
+    void addReference(GenericAstNode *node, clang::NamedDecl *referenced, std::string const &label)
+    {
+        auto funcDecl = dyn_cast<FunctionDecl>(referenced);
+        myStack.back()->setProperty(label, funcDecl == nullptr ?
+            referenced->getNameAsString() :
+            getFunctionPrototype(funcDecl));
+    }
+
+    bool VisitDeclRefExpr(clang::DeclRefExpr *ref)
+    {
+        addReference(myStack.back(), ref->getDecl(), props::Referenced);
+        addReference(myStack.back(), ref->getFoundDecl(), props::Resolved);
+
         return true;
     }
 
@@ -194,6 +299,7 @@ public:
 private:
     std::vector<GenericAstNode*> myStack;
     GenericAstNode *myRootNode;
+    ASTContext &myAstContext;
 };
 
 clang::SourceManager &AstReader::getManager()
@@ -264,7 +370,7 @@ GenericAstNode *AstReader::readAst(std::string const &sourceCode, std::string co
         (*it)->dumpColor();
     }
     std::cout << "Visiting AST and creating Qt Tree" << std::endl;
-    auto visitor = AstDumpVisitor{nullptr, getRealRoot()};
+    auto visitor = AstDumpVisitor{ myAst->getASTContext(), getRealRoot() };
     visitor.TraverseDecl(myAst->getASTContext().getTranslationUnitDecl());
     return myArtificialRoot.get();
 }

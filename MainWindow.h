@@ -13,6 +13,7 @@ public:
 public slots:
     void RefreshAst();
     void HighlightCodeMatchingNode(const QModelIndex &newNode, const QModelIndex &previousNode);
+    void DisplayNodeProperties(const QModelIndex &newNode, const QModelIndex &previousNode);
     void HighlightNodeMatchingCode();
 private:
     Ui::MainWindow myUi;

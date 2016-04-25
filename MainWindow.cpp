@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include <qmessagebox.h>
 #include <qfilesystemmodel.h>
+#include <qstringlist.h>
 #include "AstModel.h"
 
 
@@ -25,7 +26,10 @@ void MainWindow::RefreshAst()
     myUi.astTreeView->setRootIndex(model->rootIndex());
     connect(myUi.astTreeView->selectionModel(), &QItemSelectionModel::currentChanged,
         this, &MainWindow::HighlightCodeMatchingNode);
+    connect(myUi.astTreeView->selectionModel(), &QItemSelectionModel::currentChanged,
+        this, &MainWindow::DisplayNodeProperties);
     connect(myUi.codeViewer, &QTextEdit::cursorPositionChanged, this, &MainWindow::HighlightNodeMatchingCode);
+    myUi.nodeProperties->setHeaderLabels({ "Property", "Value" });
 }
 
 void MainWindow::HighlightCodeMatchingNode(const QModelIndex &newNode, const QModelIndex &previousNode)
@@ -41,6 +45,16 @@ void MainWindow::HighlightCodeMatchingNode(const QModelIndex &newNode, const QMo
     cursor.setPosition(location.first);
     cursor.setPosition(location.second, QTextCursor::KeepAnchor);
     myUi.codeViewer->setTextCursor(cursor);
+}
+
+void MainWindow::DisplayNodeProperties(const QModelIndex &newNode, const QModelIndex &previousNode)
+{
+    myUi.nodeProperties->clear();
+    auto node = myUi.astTreeView->model()->data(newNode, Qt::NodeRole).value<GenericAstNode*>();
+    for (auto &prop : node->getProperties())
+    {
+        new QTreeWidgetItem(myUi.nodeProperties, QStringList{ QString::fromStdString(prop.first), QString::fromStdString(prop.second) });
+    }
 }
 
 void MainWindow::HighlightNodeMatchingCode()
@@ -75,6 +89,7 @@ void MainWindow::HighlightNodeMatchingCode()
         myUi.astTreeView->scrollTo(currentIndex, QAbstractItemView::EnsureVisible);
         auto selectionModel = myUi.astTreeView->selectionModel();
         selectionModel->select(currentIndex, QItemSelectionModel::ClearAndSelect);
+        DisplayNodeProperties(currentIndex, currentIndex); // Since we won't use the previous node, it's not an issue if it is wrong...
     }
 }
 

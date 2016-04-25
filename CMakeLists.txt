@@ -29,6 +29,7 @@ set(ClangAst_Srcs
 	AstReader.cpp
 	AstModel.cpp
 	CommandLineSplitter.cpp
+	StringLiteralExtractor.cpp
 	)
 	
 set(ClangAst_Hdrs 
@@ -38,6 +39,7 @@ set(ClangAst_Hdrs
 	AstReader.h
 	AstModel.h
 	CommandLineSplitter.h
+	StringLiteralExtractor.h
 	)
 
 QT5_WRAP_UI(UIS_HDRS ${ClangAst_Forms})
