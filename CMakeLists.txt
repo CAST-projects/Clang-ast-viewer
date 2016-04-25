@@ -2,9 +2,11 @@ cmake_minimum_required(VERSION 2.8.9)
 project(ClangAstViewer)
 
 set (CMAKE_PREFIX_PATH "D:\\Qt\\5.5\\msvc2013_64")
-set (CLANG_ROOT "C:\\Dev\\Trunk\\3rdParties\\cpp\\binaries\\llvm-3.7.1\\")
-set (BOOST_ROOT "C:\\Dev\\Trunk\\3rdParties\\cpp\\binaries\\boost-1_55_0\\")
-set (CLANG_PREFIX_PATH ${CLANG_ROOT}x64\\$(ConfigurationName)\\)
+set (THIRD_PARTY_ROOT "C:\\Dev\\Trunk\\3rdParties\\cpp\\")
+set (THIRD_PARTY_INCLUDE_ROOT "${THIRD_PARTY_ROOT}includes\\")
+set (CLANG "llvm-3.7.1\\")
+set (BOOST "boost-1_55_0\\")
+set (CLANG_PREFIX_PATH ${THIRD_PARTY_ROOT}\\binaries_$(ConfigurationName)_x64\\${CLANG}\\)
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -14,9 +16,9 @@ set(CMAKE_AUTOMOC ON)
 # Find the QtWidgets library
 find_package(Qt5Widgets)
 
-include_directories("${CLANG_ROOT}include")
-include_directories("${CLANG_ROOT}include\\x64")
-include_directories("${BOOST_ROOT}include")
+include_directories("${THIRD_PARTY_INCLUDE_ROOT}${CLANG}")
+include_directories("${THIRD_PARTY_INCLUDE_ROOT}${CLANG}\\x64")
+include_directories("${THIRD_PARTY_INCLUDE_ROOT}${BOOST}")
 
 
 set(ClangAst_Forms MainWindow.ui)
