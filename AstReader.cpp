@@ -2,7 +2,8 @@
 #include <sstream>
 #include "CommandLineSplitter.h"
 #include <iostream>
-#include "StringLiteralExtractor.h"
+#include "ClangUtilities/StringLiteralExtractor.h"
+#include "ClangUtilities/TemplateUtilities.h"
 
 
 #pragma warning (push)
@@ -115,6 +116,7 @@ GenericAstNode::Properties const &GenericAstNode::getProperties() const
 
 
 
+
 class AstDumpVisitor : public RecursiveASTVisitor<AstDumpVisitor>
 {
 public:
@@ -126,40 +128,34 @@ public:
         myStack.push_back(myRootNode);
     }
 
-    std::string getTypeName(QualType qualType)
+    bool shouldVisitTemplateInstantiations()
     {
-        auto langOptions = clang::LangOptions{};
-        auto printPolicy = PrintingPolicy{ langOptions };
-        printPolicy.SuppressSpecifiers = false;
-        printPolicy.ConstantArraySizeAsWritten = false;
-        return qualType.getAsString(printPolicy);
+        return true;
+    }
 
-    }
-    std::string getFunctionPrototype(FunctionDecl *f)
-    {
-        std::ostringstream os;
-        os << getTypeName(f->getReturnType()) << ' ' << f->getNameAsString() << '(';
-        bool first = true;
-        for (auto param : f->parameters())
-        {
-            if (!first)
-            {
-                os << ", ";
-            }
-            first = false;
-            os << getTypeName(param->getType()) << ' ' << param->getNameAsString();
-        }
-        os << ')';
-        return os.str();
-    }
+
+
 
     std::string getMangling(clang::NamedDecl *ND)
     {
+        if (auto funcContext = dyn_cast<FunctionDecl>(ND->getDeclContext()))
+        {
+            if (funcContext->getTemplatedKind() == FunctionDecl::TK_FunctionTemplate)
+            {
+                return "<Cannot mangle name inside a template>";
+            }
+        }
+        else if (auto recContext = dyn_cast<CXXRecordDecl>(ND->getDeclContext()))
+        {
+            if (recContext->getDescribedClassTemplate() != nullptr)
+            {
+                return "<Cannot mangle name inside a template>";
+            }
+        }
         auto mangleContext = ND->getASTContext().createMangleContext();
         std::string FrontendBuf;
         llvm::raw_string_ostream FrontendBufOS(FrontendBuf);
-
-        if (mangleContext->shouldMangleDeclName(ND) && !isa<CXXConstructorDecl>(ND) && !isa<CXXDestructorDecl>(ND))
+        if (mangleContext->shouldMangleDeclName(ND) && !isa<CXXConstructorDecl>(ND) && !isa<CXXDestructorDecl>(ND) && !isa<ParmVarDecl>(ND))
         {
             mangleContext->mangleName(ND, FrontendBufOS);
             return FrontendBufOS.str();
@@ -181,13 +177,31 @@ public:
         node->name = decl->getDeclKindName() + std::string("Decl"); // Try to mimick clang default dump
         if (auto *FD = dyn_cast<FunctionDecl>(decl))
         {
-            node->name += " " + getFunctionPrototype(FD);
-            node->setProperty(props::Mangling, getMangling(FD));
-            node->setProperty(props::Name, getFunctionPrototype(FD));
+            node->name += " " + clang_utilities::getFunctionPrototype(FD, false);
+            if (FD->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate)
+            {
+                node->setProperty(props::Mangling, getMangling(FD));
+            }
+            node->setProperty(props::Name, clang_utilities::getFunctionPrototype(FD, true));
+        }
+        else if (auto *PVD = dyn_cast<ParmVarDecl>(decl))
+        {
+            if (auto *PFD = dyn_cast<FunctionDecl>(decl->getParentFunctionOrMethod()))
+            {
+                if (PFD->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate)
+                {
+                    node->setProperty(props::Mangling, getMangling(PFD));
+                }
+            }
+            else
+            {
+                node->setProperty(props::Mangling, getMangling(PVD));
+            }
+            node->setProperty(props::Name, PVD->getNameAsString());
         }
         else if (auto *VD = dyn_cast<VarDecl>(decl))
         {
-            node->setProperty(props::Mangling, getMangling(VD));
+            //node->setProperty(props::Mangling, getMangling(VD));
             node->setProperty(props::Name, VD->getNameAsString());
         }
         else if (auto *ND = dyn_cast<NamedDecl>(decl))
@@ -225,7 +239,7 @@ public:
     {
         myStack.back()->name += (" " + s->getBytes()).str();
         myStack.back()->setProperty(props::InterpretedValue, s->getBytes());
-        auto parts = splitStringLiteral(s, myAstContext.getSourceManager(), myAstContext.getLangOpts(), myAstContext.getTargetInfo());
+        auto parts = clang_utilities::splitStringLiteral(s, myAstContext.getSourceManager(), myAstContext.getLangOpts(), myAstContext.getTargetInfo());
         if (parts.size() == 1)
         {
             myStack.back()->setProperty(props::Value, parts[0]);
@@ -268,7 +282,7 @@ public:
         auto funcDecl = dyn_cast<FunctionDecl>(referenced);
         myStack.back()->setProperty(label, funcDecl == nullptr ?
             referenced->getNameAsString() :
-            getFunctionPrototype(funcDecl));
+            clang_utilities::getFunctionPrototype(funcDecl, false));
     }
 
     bool VisitDeclRefExpr(clang::DeclRefExpr *ref)

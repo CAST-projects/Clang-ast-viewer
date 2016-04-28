@@ -1,56 +1,25 @@
 cmake_minimum_required(VERSION 2.8.9)
-project(ClangAstViewer)
 
-set (CMAKE_PREFIX_PATH "D:\\Qt\\5.5\\msvc2013_64")
-set (THIRD_PARTY_ROOT "C:\\Dev\\Trunk\\3rdParties\\cpp\\")
-set (THIRD_PARTY_INCLUDE_ROOT "${THIRD_PARTY_ROOT}includes\\")
-set (CLANG "llvm-3.7.1\\")
-set (BOOST "boost-1_55_0\\")
-set (CLANG_PREFIX_PATH ${THIRD_PARTY_ROOT}\\binaries_$(ConfigurationName)_x64\\${CLANG}\\)
-
-add_subdirectory(ClangUtilities)
-
-
-# Find includes in corresponding build directories
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-# Instruct CMake to run moc automatically when needed.
-set(CMAKE_AUTOMOC ON)
-
-# Find the QtWidgets library
-find_package(Qt5Widgets)
 
 include_directories("${THIRD_PARTY_INCLUDE_ROOT}${CLANG}")
 include_directories("${THIRD_PARTY_INCLUDE_ROOT}${CLANG}\\x64")
-include_directories("${THIRD_PARTY_INCLUDE_ROOT}${BOOST}")
 
-
-set(ClangAst_Forms MainWindow.ui)
-set(ClangAst_Srcs 
-	main.cpp 
-	MainWindow.cpp 
-	Highlighter.cpp
-	AstReader.cpp
-	AstModel.cpp
-	CommandLineSplitter.cpp
+set(ClangUtilities_Srcs 
+	TemplateUtilities.cpp 
+	StringLiteralExtractor.cpp
+	)
+	
+set(ClangUtilities_Hdrs 
+	TemplateUtilities.h 
+	StringLiteralExtractor.h
 	)
 
-set(ClangAst_Hdrs 
-	MainWindow.h 
-	Highlighter.h
-	AstReader.h
-	AstModel.h
-	CommandLineSplitter.h
-	)
+add_library(ClangUtilities STATIC ${ClangUtilities_Srcs} ${ClangUtilities_Hdrs})
 
-QT5_WRAP_UI(UIS_HDRS ${ClangAst_Forms})
-
-# Tell CMake to create the helloworld executable
-add_executable(ClangAstViewer ${ClangAst_Srcs} ${ClangAst_Hdrs} ${UIS_HDRS})
 
 
 # Probably some can be removed...
-target_link_libraries (ClangAstViewer 
-	ClangUtilities
+target_link_libraries (ClangUtilities 
 	${CLANG_PREFIX_PATH}clangAnalysis.lib
 	${CLANG_PREFIX_PATH}clangARCMigrate.lib
 	${CLANG_PREFIX_PATH}clangAST.lib
@@ -93,8 +62,5 @@ target_link_libraries (ClangAstViewer
 	${CLANG_PREFIX_PATH}LLVMXCoreDisassembler.lib
 	${CLANG_PREFIX_PATH}LLVMXCoreInfo.lib
 	)
-
-# Use the Widgets module from Qt 5.
-qt5_use_modules(ClangAstViewer Widgets)
 
 

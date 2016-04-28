@@ -1,13 +1,12 @@
 #include "StringLiteralExtractor.h"
 
 #pragma warning (push)
-#pragma warning (disable:4100 4127 4800 4512 4245 4291 4510 4610 4324 4267 4244 4996)
+#pragma warning (disable:4100 4127 4800 4512 4245 4291 4510 4610 4324 4267 4244 4996 4146)
 #include <clang/AST/Expr.h>
 #include <clang/Lex/Lexer.h>
 #include <clang/Lex/LiteralSupport.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Basic/SourceLocation.h>
-#include <clang/Basic/LangOptions.h>
 #include <clang/Basic/TargetInfo.h>
 #include <clang/Basic/CharInfo.h>
 #include <llvm/ADT/StringExtras.h>
@@ -17,8 +16,10 @@
 
 using namespace clang;
 
+namespace clang_utilities {
+
 // This function is an direct adaptation from ProcessCharEscape in llvm-3.7.1\src\tools\clang\lib\Lex\LiteralSupport.cpp (just removed the diag part)
-static unsigned ProcessCharEscape(const char *ThisTokBegin,
+unsigned ProcessCharEscape(const char *ThisTokBegin,
     const char *&ThisTokBuf,
     const char *ThisTokEnd, bool &HadError,
     FullSourceLoc Loc, unsigned CharWidth,
@@ -126,12 +127,12 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
 
 
 // This function is an direct adaptation from ProcessUCNEscape in llvm-3.7.1\src\tools\clang\lib\Lex\LiteralSupport.cpp (just removed the diag part)
-static bool ProcessUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
+bool ProcessUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
     const char *ThisTokEnd,
     uint32_t &UcnVal, unsigned short &UcnLen,
     FullSourceLoc Loc,
     const LangOptions &Features,
-    bool in_char_string_literal = false) {
+    bool in_char_string_literal) {
     const char *UcnBegin = ThisTokBuf;
 
     // Skip the '\u' char's.
@@ -171,7 +172,7 @@ static bool ProcessUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
 }
 
 // This function is an direct adaptation from ProcessUCNEscape in llvm-3.7.1\src\tools\clang\lib\Lex\LiteralSupport.cpp (just removed the diag part)
-static int MeasureUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
+int MeasureUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
     const char *ThisTokEnd, unsigned CharByteWidth,
     const LangOptions &Features, bool &HadError) {
     // UTF-32: 4 bytes per escape.
@@ -299,3 +300,5 @@ splitStringLiteral(StringLiteral *S, const SourceManager &SM, const LangOptions 
     }
     return result;
 }
+
+} // namespace clang_utilities
