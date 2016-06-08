@@ -29,6 +29,7 @@ namespace props
     std::string const Resolved = "Resolved name";
     std::string const Value = "Value";
     std::string const InterpretedValue = "Interpreted value";
+    std::string const IsTemplateDecl = "Is template declaration";
 }
 
 GenericAstNode::GenericAstNode() :
@@ -128,11 +129,15 @@ public:
         myStack.push_back(myRootNode);
     }
 
-    bool shouldVisitTemplateInstantiations()
+    bool shouldVisitTemplateInstantiations() const
     {
         return true;
     }
 
+    bool shouldVisitImplicitCode() const 
+    { 
+        return true; 
+    }
 
 
 
@@ -186,7 +191,7 @@ public:
         }
         else if (auto *PVD = dyn_cast<ParmVarDecl>(decl))
         {
-            if (auto *PFD = dyn_cast<FunctionDecl>(decl->getParentFunctionOrMethod()))
+            if (auto *PFD = dyn_cast_or_null<FunctionDecl>(decl->getParentFunctionOrMethod()))
             {
                 if (PFD->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate)
                 {
@@ -274,6 +279,12 @@ public:
     bool VisitFloatingLiteral(clang::FloatingLiteral *f)
     {
         myStack.back()->setProperty(props::Value, std::to_string(f->getValueAsApproximateDouble()));
+        return true;
+    }
+
+    bool VisitCXXRecordDecl(clang::CXXRecordDecl *r)
+    {
+        myStack.back()->setProperty(props::IsTemplateDecl, std::to_string(r->getDescribedClassTemplate() != nullptr));
         return true;
     }
 
@@ -381,7 +392,7 @@ GenericAstNode *AstReader::readAst(std::string const &sourceCode, std::string co
     myAst = clang::tooling::buildASTFromCodeWithArgs(mySourceCode, args);
     for (auto it = myAst->top_level_begin(); it != myAst->top_level_end(); ++it)
     {
-        (*it)->dumpColor();
+        //(*it)->dumpColor();
     }
     std::cout << "Visiting AST and creating Qt Tree" << std::endl;
     auto visitor = AstDumpVisitor{ myAst->getASTContext(), getRealRoot() };

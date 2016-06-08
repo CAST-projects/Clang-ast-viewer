@@ -14,6 +14,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(myUi.actionRefresh, &QAction::triggered, this, &MainWindow::RefreshAst);
 
     myHighlighter = new Highlighter(myUi.codeViewer->document());
+    myUi.nodeProperties->setHeaderLabels({ "Property", "Value" });
 }
 
 void MainWindow::RefreshAst()
@@ -29,7 +30,6 @@ void MainWindow::RefreshAst()
     connect(myUi.astTreeView->selectionModel(), &QItemSelectionModel::currentChanged,
         this, &MainWindow::DisplayNodeProperties);
     connect(myUi.codeViewer, &QTextEdit::cursorPositionChanged, this, &MainWindow::HighlightNodeMatchingCode);
-    myUi.nodeProperties->setHeaderLabels({ "Property", "Value" });
 }
 
 void MainWindow::HighlightCodeMatchingNode(const QModelIndex &newNode, const QModelIndex &previousNode)
