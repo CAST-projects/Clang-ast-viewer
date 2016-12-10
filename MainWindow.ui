@@ -97,7 +97,7 @@ selection-color: white</string>
      <item row="0" column="0">
       <widget class="QPlainTextEdit" name="commandLineArgs">
        <property name="plainText">
-        <string>-std:C++14 &quot;-IC:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include&quot; -I&quot;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10150.0\ucrt&quot; -fcxx-exceptions -fms-compatibility -fdelayed-template-parsing</string>
+        <string>-std=c++14 &quot;-IC:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include&quot; -I&quot;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10150.0\ucrt&quot; -fcxx-exceptions -fms-compatibility -fdelayed-template-parsing</string>
        </property>
       </widget>
      </item>
