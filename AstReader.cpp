@@ -17,6 +17,7 @@
 #include <clang/Basic/TargetInfo.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/AST/Mangle.h>
+#include <clang/Analysis/CFG.h>
 #pragma warning (pop)
 
 using namespace clang;
@@ -30,10 +31,46 @@ namespace props
     std::string const Value = "Value";
     std::string const InterpretedValue = "Interpreted value";
     std::string const IsTemplateDecl = "Is template declaration";
+    std::string const IsGenerated = "Generated";
 }
 
+
+CFG::BuildOptions getCFGBuildOptions()
+{
+    CFG::BuildOptions cfgBuildOptions; // TODO: Initialize it correctly
+    cfgBuildOptions.AddImplicitDtors = true;
+    cfgBuildOptions.AddTemporaryDtors = true;
+    cfgBuildOptions.AddCXXDefaultInitExprInCtors = true;
+    cfgBuildOptions.AddInitializers = true;
+    return cfgBuildOptions;
+}
+
+std::string getCFG(clang::FunctionDecl const *FD)
+{
+    try
+    {
+        auto& astContext = FD->getASTContext();
+        auto cfgBuildOptions = getCFGBuildOptions();
+        auto cfg = CFG::buildCFG(FD, FD->getBody(), &astContext, cfgBuildOptions);
+        if (!cfg)
+            return "";
+        std::string dumpBuf;
+        llvm::raw_string_ostream dumpBufOS(dumpBuf);
+
+        cfg->print(dumpBufOS, astContext.getLangOpts(), false);
+        auto dumped = dumpBufOS.str();
+        return dumped;
+    }
+    catch (std::exception &e)
+    {
+        return std::string("<Error: ") + e.what() + ">";
+    }
+}
+
+
+
 GenericAstNode::GenericAstNode() :
-    myParent(nullptr)
+myParent(nullptr), hasDetails(false)
 {
 
 }
@@ -139,37 +176,61 @@ public:
         return true; 
     }
 
-
-
-    std::string getMangling(clang::NamedDecl *ND)
+    std::string getMangling(clang::NamedDecl const *ND)
     {
         if (auto funcContext = dyn_cast<FunctionDecl>(ND->getDeclContext()))
         {
             if (funcContext->getTemplatedKind() == FunctionDecl::TK_FunctionTemplate)
             {
-                return "<Cannot mangle name inside a template>";
+                return "<Cannot mangle template name>";
             }
         }
-        else if (auto recContext = dyn_cast<CXXRecordDecl>(ND->getDeclContext()))
+
+        std::vector<TagDecl const *> containers;
+        auto currentElement = dyn_cast<TagDecl>(ND->getDeclContext());
+        while (currentElement)
         {
-            if (recContext->getDescribedClassTemplate() != nullptr)
+            containers.push_back(currentElement);
+            currentElement = dyn_cast<TagDecl>(currentElement->getDeclContext());
+        }
+        for (auto tag : containers)
+        {
+            if (auto partialSpe = dyn_cast<ClassTemplatePartialSpecializationDecl>(tag))
             {
-                return "<Cannot mangle name inside a template>";
+                return "<Inside partial specialization " + tag->getNameAsString() + ": " + ND->getNameAsString() + ">";
+            }
+            else if (auto recContext = dyn_cast<CXXRecordDecl>(tag))
+            {
+                if (recContext->getDescribedClassTemplate() != nullptr)
+                {
+                    return "<Inside a template" + tag->getNameAsString() + ": " + ND->getNameAsString() + ">";
+                }
             }
         }
-        auto mangleContext = ND->getASTContext().createMangleContext();
+
+        auto mangleContext = std::unique_ptr<clang::MangleContext>{ND->getASTContext().createMangleContext()};
         std::string FrontendBuf;
         llvm::raw_string_ostream FrontendBufOS(FrontendBuf);
-        if (mangleContext->shouldMangleDeclName(ND) && !isa<CXXConstructorDecl>(ND) && !isa<CXXDestructorDecl>(ND) && !isa<ParmVarDecl>(ND))
+
+        if (auto ctor = dyn_cast<CXXConstructorDecl>(ND))
+        {
+            mangleContext->mangleCXXCtor(ctor, CXXCtorType::Ctor_Complete, FrontendBufOS);
+        }
+        else if (auto dtor = dyn_cast<CXXDestructorDecl>(ND))
+        {
+            mangleContext->mangleCXXDtor(dtor, CXXDtorType::Dtor_Complete, FrontendBufOS);
+        }
+        else if (mangleContext->shouldMangleDeclName(ND) && !isa<ParmVarDecl>(ND))
         {
             mangleContext->mangleName(ND, FrontendBufOS);
-            return FrontendBufOS.str();
         }
         else
         {
-            return "<No Mangling>";
+            return ND->getNameAsString();
         }
+        return FrontendBufOS.str();
     }
+
 
     bool TraverseDecl(clang::Decl *decl)
     {
@@ -182,12 +243,40 @@ public:
         node->name = decl->getDeclKindName() + std::string("Decl"); // Try to mimick clang default dump
         if (auto *FD = dyn_cast<FunctionDecl>(decl))
         {
+#ifndef NDEBUG
+            auto &mngr = FD->getASTContext().getSourceManager();
+            auto fileName = mngr.getFilename(FD->getLocation()).str();
+            bool invalid;
+            auto startingLine = mngr.getExpansionLineNumber(FD->getLocation(), &invalid);
+
+            std::string FrontendBuf;
+            llvm::raw_string_ostream FrontendBufOS(FrontendBuf);
+            clang::PrintingPolicy policyForDebug(FD->getASTContext().getLangOpts());
+            FD->getNameForDiagnostic(FrontendBufOS, policyForDebug, true);
+            auto debugName = FrontendBufOS.str();
+
+            RecordDecl const*containingClass = nullptr;
+            if (FD->isCXXClassMember())
+            {
+                auto methodDecl = cast<CXXMethodDecl>(FD);
+                containingClass = cast<RecordDecl>(methodDecl->getDeclContext());
+            }
+#endif
+
             node->name += " " + clang_utilities::getFunctionPrototype(FD, false);
             if (FD->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate)
             {
                 node->setProperty(props::Mangling, getMangling(FD));
             }
             node->setProperty(props::Name, clang_utilities::getFunctionPrototype(FD, true));
+            if (auto *MD = dyn_cast<CXXMethodDecl>(FD))
+            {
+                node->setProperty(props::IsGenerated, MD->isUserProvided() ? "False" : "True");
+
+            }
+            node->hasDetails = true;
+            node->detailsTitle = "Control flow graph";
+            node->detailsComputer = [FD]() {return getCFG(FD); };
         }
         else if (auto *PVD = dyn_cast<ParmVarDecl>(decl))
         {
@@ -288,6 +377,7 @@ public:
         return true;
     }
 
+
     void addReference(GenericAstNode *node, clang::NamedDecl *referenced, std::string const &label)
     {
         auto funcDecl = dyn_cast<FunctionDecl>(referenced);
@@ -326,6 +416,11 @@ private:
     GenericAstNode *myRootNode;
     ASTContext &myAstContext;
 };
+
+
+AstReader::AstReader() : isReady(false)
+{
+}
 
 clang::SourceManager &AstReader::getManager()
 {
@@ -390,12 +485,27 @@ GenericAstNode *AstReader::readAst(std::string const &sourceCode, std::string co
 
     std::cout << "Launching Clang to create AST" << std::endl;
     myAst = clang::tooling::buildASTFromCodeWithArgs(mySourceCode, args);
-    for (auto it = myAst->top_level_begin(); it != myAst->top_level_end(); ++it)
+    if (myAst != nullptr)
     {
-        //(*it)->dumpColor();
+        for (auto it = myAst->top_level_begin(); it != myAst->top_level_end(); ++it)
+        {
+            //(*it)->dumpColor();
+        }
+        std::cout << "Visiting AST and creating Qt Tree" << std::endl;
+        auto visitor = AstDumpVisitor{ myAst->getASTContext(), getRealRoot() };
+        visitor.TraverseDecl(myAst->getASTContext().getTranslationUnitDecl());
     }
-    std::cout << "Visiting AST and creating Qt Tree" << std::endl;
-    auto visitor = AstDumpVisitor{ myAst->getASTContext(), getRealRoot() };
-    visitor.TraverseDecl(myAst->getASTContext().getTranslationUnitDecl());
+    isReady = true;
     return myArtificialRoot.get();
 }
+
+bool AstReader::ready()
+{
+    return isReady;
+}
+
+void AstReader::dirty()
+{
+    isReady = false;
+}
+

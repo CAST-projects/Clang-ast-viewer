@@ -28,6 +28,12 @@ public:
     Properties const &getProperties() const;
     boost::variant<clang::Decl *, clang::Stmt *> myAstNode;
     GenericAstNode *myParent;
+
+    bool hasDetails;
+    std::string detailsTitle;
+    std::string details;
+    std::function<std::string()> detailsComputer;
+
 private:
     Properties myProperties;
 };
@@ -35,16 +41,20 @@ private:
 class AstReader
 {
 public:
+    AstReader();
     GenericAstNode *readAst(std::string const &sourceCode, std::string const &options);
     clang::SourceManager &getManager();
     clang::ASTContext &getContext();
     GenericAstNode *getRealRoot();
     std::vector<GenericAstNode *> getBestNodeMatchingPosition(int position); // Return the path from root to the node
+    bool ready();
+    void dirty(); // Ready will be false until the reader is run again
 private:
     GenericAstNode *findPosInChildren(std::vector<std::unique_ptr<GenericAstNode>> const &candidates, int position);
     std::string args;
     std::string mySourceCode; // Needs to stay alive while we navigate the tree
     std::unique_ptr<clang::ASTUnit> myAst;
     std::unique_ptr<GenericAstNode> myArtificialRoot; // We need an artificial root on top of the real root, because the root is not displayed by Qt
+    bool isReady;
 };
 

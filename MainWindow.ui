@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Clang AST viewer</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -56,6 +56,9 @@ selection-color: white</string>
     <layout class="QGridLayout" name="gridLayout_2">
      <item row="0" column="0">
       <widget class="QTreeView" name="astTreeView">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="styleSheet">
         <string notr="true">QTreeView::item:selected { color:white; background:rgb(170, 85, 255); }</string>
        </property>
@@ -94,7 +97,7 @@ selection-color: white</string>
      <item row="0" column="0">
       <widget class="QPlainTextEdit" name="commandLineArgs">
        <property name="plainText">
-        <string>&quot;-IC:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include&quot; -I&quot;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10150.0\ucrt&quot; -fcxx-exceptions -fms-compatibility -fdelayed-template-parsing</string>
+        <string>-std:C++14 &quot;-IC:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include&quot; -I&quot;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10150.0\ucrt&quot; -fcxx-exceptions -fms-compatibility -fdelayed-template-parsing</string>
        </property>
       </widget>
      </item>
@@ -125,6 +128,13 @@ selection-color: white</string>
          <string notr="true">2</string>
         </property>
        </column>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QPushButton" name="showDetails">
+       <property name="text">
+        <string>Show details</string>
+       </property>
       </widget>
      </item>
     </layout>

@@ -15,8 +15,13 @@ public slots:
     void HighlightCodeMatchingNode(const QModelIndex &newNode, const QModelIndex &previousNode);
     void DisplayNodeProperties(const QModelIndex &newNode, const QModelIndex &previousNode);
     void HighlightNodeMatchingCode();
+    void ShowNodeDetails();
+    void OnCodeChange();
+    void closeEvent(QCloseEvent *event) override;
 private:
     Ui::MainWindow myUi;
     Highlighter *myHighlighter; // No need to delete, since is will have a parent that will take care of that
     AstReader myReader;
+    std::vector<QDialog *> myDetailWindows;
+    bool isUpdateInProgress;
 };
