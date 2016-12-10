@@ -7,7 +7,11 @@ set (THIRD_PARTY_INCLUDE_ROOT "${THIRD_PARTY_ROOT}includes\\")
 set (CLANG "llvm-3.7.1\\")
 set (BOOST "boost-1_55_0\\")
 #set (CLANG_PREFIX_PATH ${THIRD_PARTY_ROOT}\\binaries_$(ConfigurationName)_x64\\${CLANG}\\)
-set (CLANG_PREFIX_PATH C:\\Users\\LJO\\.conan\\data\\llvm\\3.9.0.3\\yle\\stable\\package\\2c0843cc59ff2d07e33c808b3398bc624e6b54e4\\lib\\)
+set (CLANG_PACKAGE_ID
+    "$<$<CONFIG:Debug>:2c0843cc59ff2d07e33c808b3398bc624e6b54e4>$<$<CONFIG:Release>:e0a02d496bbb652b6295152dfce0d3937acc0b56>" 
+    )
+set(CLANG_PREFIX_PATH "C:\\Users\\LJO\\.conan\\data\\llvm\\3.9.0.3\\yle\\stable\\package\\${CLANG_PACKAGE_ID}\\lib\\")
+#set (CLANG_PREFIX_PATH C:\\Users\\LJO\\.conan\\data\\llvm\\3.9.0.3\\yle\\stable\\package\\2c0843cc59ff2d07e33c808b3398bc624e6b54e4\\lib\\)
 
 add_subdirectory(ClangUtilities)
 
