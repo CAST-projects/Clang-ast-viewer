@@ -20,6 +20,7 @@ void printTemplateArguments(llvm::raw_ostream &out, const clang::PrintingPolicy 
 void printTemplateArgument(llvm::raw_ostream &out, const clang::PrintingPolicy &policy, clang::TemplateArgument const &arg, bool qualifyNames);
 
 std::string getFunctionPrototype(clang::FunctionDecl *f, bool qualifyNames);
+std::string getTypeName(clang::QualType qualType, bool qualifyNames);
 
 
 } // namespace clang_utilities

@@ -32,6 +32,7 @@ namespace props
     std::string const InterpretedValue = "Interpreted value";
     std::string const IsTemplateDecl = "Is template declaration";
     std::string const IsGenerated = "Generated";
+    std::string const Type = "Type";
 }
 
 
@@ -297,6 +298,12 @@ public:
         {
             //node->setProperty(props::Mangling, getMangling(VD));
             node->setProperty(props::Name, VD->getNameAsString());
+            node->setProperty(props::Type, clang_utilities::getTypeName(VD->getType(), true));
+        }
+        else if (auto *ECD = dyn_cast<EnumConstantDecl>(decl))
+        {
+            node->setProperty(props::Name, ECD->getNameAsString());
+            node->setProperty(props::Value, ECD->getInitVal().toString(10));
         }
         else if (auto *tag = dyn_cast<TagDecl>(decl))
         {
