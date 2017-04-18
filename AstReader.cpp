@@ -298,8 +298,30 @@ public:
             //node->setProperty(props::Mangling, getMangling(VD));
             node->setProperty(props::Name, VD->getNameAsString());
         }
+        else if (auto *tag = dyn_cast<TagDecl>(decl))
+        {
+            std::string nameBuf;
+            llvm::raw_string_ostream os(nameBuf);
+
+            if (TypedefNameDecl *Typedef = tag->getTypedefNameForAnonDecl())
+                os << Typedef->getIdentifier()->getName();
+            else if (tag->getIdentifier())
+                os << tag->getIdentifier()->getName();
+            else
+                os << "No name";
+
+            if (auto templateInstance = dyn_cast<ClassTemplateSpecializationDecl>(tag))
+            {
+                clang::PrintingPolicy policy(templateInstance->getASTContext().getLangOpts());
+                clang_utilities::printTemplateArguments(os, policy, &templateInstance->getTemplateArgs(), false);
+            }
+            node->name += " " + tag->getNameAsString();
+            node->setProperty(props::Name, os.str());
+        }
         else if (auto *ND = dyn_cast<NamedDecl>(decl))
         {
+
+
             node->name += " " + ND->getNameAsString();
             node->setProperty(props::Name, ND->getNameAsString());
         }
