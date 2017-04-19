@@ -205,6 +205,7 @@ int MeasureUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
 
 
 
+#if 0
 // This function is just the same as convertUTF16ToUTF8String, but adapted to UTF32, since it did not exist in clang
 bool convertUTF32ToUTF8String(ArrayRef<char> SrcBytes, std::string &Out) {
     assert(Out.empty());
@@ -243,7 +244,7 @@ bool convertUTF32ToUTF8String(ArrayRef<char> SrcBytes, std::string &Out) {
     Out.pop_back();
     return true;
 }
-
+#endif
 
 // This function is an adaptation from StringLiteral::getLocationOfByte in llvm-3.7.1\src\tools\clang\lib\AST\Expr.cpp
 std::vector<std::string>
