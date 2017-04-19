@@ -22,12 +22,12 @@ std::vector<std::string> splitCommandLine(std::string const &cmdline)
         // Note! This expands shell variables.
         if (wordexp(cmdline.c_str(), &p, 0))
         {
-            return NULL;
+            return {};
         }
 
         argc = p.we_wordc;
 
-        if (!(argv = calloc(argc, sizeof(char *))))
+        if (!(argv = reinterpret_cast<char **>(calloc(argc, sizeof(char *)))))
         {
             goto fail;
         }
