@@ -1,88 +1,79 @@
-cmake_minimum_required(VERSION 2.8.9)
-project(ClangAstViewer)
+cmake_minimum_required(VERSION 3.2)
 
-set (CMAKE_PREFIX_PATH "D:\\Qt\\5.5\\msvc2013_64")
-set (THIRD_PARTY_ROOT "D:\\Dev\\Trunk\\3rdParties\\cpp\\")
-set (THIRD_PARTY_INCLUDE_ROOT "${THIRD_PARTY_ROOT}includes\\")
-set (CLANG "llvm-3.7.1\\")
-set (BOOST "boost-1_55_0\\")
-#set (CLANG_PREFIX_PATH ${THIRD_PARTY_ROOT}\\binaries_$(ConfigurationName)_x64\\${CLANG}\\)
-set (CLANG_PACKAGE_ID
-    "$<$<CONFIG:Debug>:2c0843cc59ff2d07e33c808b3398bc624e6b54e4>$<$<CONFIG:Release>:e0a02d496bbb652b6295152dfce0d3937acc0b56>" 
-    )
-set(CLANG_PREFIX_PATH "C:\\Users\\LJO\\.conan\\data\\llvm\\3.9.0.3\\yle\\stable\\package\\${CLANG_PACKAGE_ID}\\lib\\")
-#set (CLANG_PREFIX_PATH C:\\Users\\LJO\\.conan\\data\\llvm\\3.9.0.3\\yle\\stable\\package\\2c0843cc59ff2d07e33c808b3398bc624e6b54e4\\lib\\)
+project(ClangAstViewer CXX)
 
-add_subdirectory(ClangUtilities)
+set(CMAKE_CXX_STANDARD 14)
 
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
+
+# to be set when calling cmake (e.g. -DLLVM_INSTALL_DIR=...)
+# path is where there is include/ and lib/ of LLVM/clang
+set(LLVM_INSTALL_DIR "../llvm-install-dir" CACHE  STRING "")
+
+set(LLVM_DIR "${LLVM_INSTALL_DIR}/lib/cmake/llvm")
+find_package(LLVM REQUIRED
+    NO_CMAKE_PATH
+    NO_DEFAULT_PATH)
+
+# where to get Clang's exported cmake-file for importing
+set(Clang_DIR "${LLVM_INSTALL_DIR}/lib/cmake/clang")
+find_package(Clang REQUIRED
+    NO_CMAKE_PATH
+    NO_DEFAULT_PATH)
+
+# ClangUtilities library
+add_library(ClangUtilities
+    ClangUtilities/TemplateUtilities.cpp
+    ClangUtilities/StringLiteralExtractor.cpp
+    ClangUtilities/TemplateUtilities.h
+    ClangUtilities/StringLiteralExtractor.h)
+
+# unfortunately LLVM CMake exports do not contain the include_directories,
+# so it needs to be added "manually" here
+
+target_include_directories(ClangUtilities PUBLIC ${LLVM_INSTALL_DIR}/include)
+target_link_libraries(ClangUtilities
+    PRIVATE
+        clangAnalysis
+        clangAST
+        clangBasic
+        clangFrontend
+        clangIndex
+        clangLex
+        clangTooling
+        LLVMSupport)
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
 # Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)
 
-# Find the QtWidgets library
-find_package(Qt5Widgets)
-
-include_directories("C:\\Users\\LJO\\.conan\\data\\llvm\\3.9.0.3\\yle\\stable\\package\\2c0843cc59ff2d07e33c808b3398bc624e6b54e4\\include")
-# include_directories("${THIRD_PARTY_INCLUDE_ROOT}${CLANG}\\x64")
-include_directories("${THIRD_PARTY_INCLUDE_ROOT}${BOOST}")
-
-
+# UIs
 set(ClangAst_Forms MainWindow.ui)
-set(ClangAst_Srcs 
-	main.cpp 
-	MainWindow.cpp 
+
+# Srcs
+set(ClangAst_Srcs
+	main.cpp
+	MainWindow.cpp
 	Highlighter.cpp
 	AstReader.cpp
 	AstModel.cpp
-	CommandLineSplitter.cpp
-	)
+	CommandLineSplitter.cpp)
 
-set(ClangAst_Hdrs 
-	MainWindow.h 
+# Headers for MOC and vcproj-file
+set(ClangAst_Hdrs
+	MainWindow.h
 	Highlighter.h
 	AstReader.h
 	AstModel.h
-	CommandLineSplitter.h
-	)
+	CommandLineSplitter.h)
 
 QT5_WRAP_UI(UIS_HDRS ${ClangAst_Forms})
 
-# Tell CMake to create the helloworld executable
+# Tell CMake to create the ClangAstViewer executable
 add_executable(ClangAstViewer ${ClangAst_Srcs} ${ClangAst_Hdrs} ${UIS_HDRS})
-
-
-# Probably some can be removed...
-target_link_libraries (ClangAstViewer 
-	ClangUtilities
-	${CLANG_PREFIX_PATH}clangAnalysis.lib
-	${CLANG_PREFIX_PATH}clangAST.lib
-	${CLANG_PREFIX_PATH}clangASTMatchers.lib
-	${CLANG_PREFIX_PATH}clangBasic.lib
-	${CLANG_PREFIX_PATH}clangDriver.lib
-	${CLANG_PREFIX_PATH}clangEdit.lib
-	${CLANG_PREFIX_PATH}clangFrontend.lib
-	${CLANG_PREFIX_PATH}clangLex.lib
-	${CLANG_PREFIX_PATH}clangParse.lib
-	${CLANG_PREFIX_PATH}clangStaticAnalyzerCore.lib
-	${CLANG_PREFIX_PATH}clangStaticAnalyzerCheckers.lib
-	${CLANG_PREFIX_PATH}clangStaticAnalyzerFrontend.lib
-	${CLANG_PREFIX_PATH}clangRewrite.lib
-	${CLANG_PREFIX_PATH}clangSema.lib
-	${CLANG_PREFIX_PATH}clangSerialization.lib
-	${CLANG_PREFIX_PATH}clangTooling.lib
-	${CLANG_PREFIX_PATH}LLVMBitReader.lib
-	${CLANG_PREFIX_PATH}LLVMMC.lib
-	${CLANG_PREFIX_PATH}LLVMMCParser.lib
-	${CLANG_PREFIX_PATH}LLVMOption.lib
-	${CLANG_PREFIX_PATH}LLVMSupport.lib
-	${CLANG_PREFIX_PATH}LLVMProfileData.lib
-	${CLANG_PREFIX_PATH}LLVMCore.lib
-	version.lib
-	)
+target_link_libraries(ClangAstViewer ClangUtilities)
 
 # Use the Widgets module from Qt 5.
 qt5_use_modules(ClangAstViewer Widgets)
-
-
